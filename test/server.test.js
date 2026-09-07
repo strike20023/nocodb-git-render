@@ -10,6 +10,7 @@ const test = require('node:test');
 const {
   bootstrapRepository,
   extractCommitMessage,
+  findNocoCommand,
   restoreSnapshot,
   sanitizeMessage,
   saveVersion,
@@ -73,6 +74,48 @@ test('bearer verification is strict', () => {
   assert.equal(verifyBearer('Bearer wrong', 'secret'), false);
   assert.equal(verifyBearer(undefined, 'secret'), false);
   assert.equal(verifyBearer('Bearer secret', ''), false);
+});
+
+test('NocoDB startup supports current, legacy, and explicit entrypoints', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nocodb-entry-test-'));
+  try {
+    const dockerDir = path.join(root, 'docker');
+    fs.mkdirSync(dockerDir);
+    const currentMain = path.join(dockerDir, 'index.js');
+    const legacyMain = path.join(dockerDir, 'main.js');
+
+    fs.writeFileSync(legacyMain, '');
+    assert.deepEqual(findNocoCommand({}, root), {
+      command: process.execPath,
+      args: [legacyMain],
+      cwd: root,
+    });
+
+    fs.writeFileSync(currentMain, '');
+    assert.deepEqual(findNocoCommand({}, root), {
+      command: process.execPath,
+      args: [currentMain],
+      cwd: root,
+    });
+
+    const explicitMain = path.join(root, 'custom-main.js');
+    fs.writeFileSync(explicitMain, '');
+    assert.deepEqual(findNocoCommand({ NOCODB_MAIN: explicitMain }, root), {
+      command: process.execPath,
+      args: [explicitMain],
+      cwd: path.dirname(root),
+    });
+
+    const start = path.join(root, 'start.sh');
+    fs.writeFileSync(start, '#!/bin/sh\n');
+    assert.deepEqual(findNocoCommand({ NOCODB_START: start }, root), {
+      command: start,
+      args: [],
+      cwd: root,
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('save creates a consistent data commit and restore materializes it', () => {

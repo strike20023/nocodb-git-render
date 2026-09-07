@@ -383,18 +383,39 @@ function proxyUpgrade(request, socket, head, cfg) {
   socket.on('error', () => upstream.destroy());
 }
 
-function findNocoMain() {
+function findNocoCommand(env = process.env, cwd = process.cwd()) {
   const candidates = [
-    process.env.NOCODB_MAIN,
-    '/usr/src/app/docker/main.js',
-    path.join(process.cwd(), 'docker/main.js'),
+    env.NOCODB_START && { type: 'start', file: env.NOCODB_START },
+    env.NOCODB_MAIN && { type: 'main', file: env.NOCODB_MAIN },
+    { type: 'start', file: '/usr/src/appEntry/start.sh' },
+    { type: 'main', file: '/usr/src/app/docker/index.js' },
+    { type: 'main', file: '/usr/src/app/docker/main.js' },
+    { type: 'main', file: path.join(cwd, 'docker/index.js') },
+    { type: 'main', file: path.join(cwd, 'docker/main.js') },
   ].filter(Boolean);
-  return candidates.find((candidate) => fs.existsSync(candidate));
+  const selected = candidates.find((candidate) => fs.existsSync(candidate.file));
+  if (!selected) return null;
+
+  if (selected.type === 'start') {
+    const workdir = env.NOCODB_WORKDIR
+      || (fs.existsSync('/usr/src/app') ? '/usr/src/app' : cwd);
+    return { command: selected.file, args: [], cwd: workdir };
+  }
+
+  return {
+    command: process.execPath,
+    args: [selected.file],
+    cwd: path.dirname(path.dirname(selected.file)),
+  };
 }
 
 function startNocoDB(cfg) {
-  const main = findNocoMain();
-  if (!main) throw new Error('Could not find NocoDB docker/main.js; set NOCODB_MAIN');
+  const noco = findNocoCommand();
+  if (!noco) {
+    throw new Error(
+      'Could not find the NocoDB start script or docker entry module; set NOCODB_START or NOCODB_MAIN',
+    );
+  }
   const env = {
     ...process.env,
     PORT: String(cfg.internalPort),
@@ -402,7 +423,7 @@ function startNocoDB(cfg) {
     NC_TOOL_DIR: cfg.liveDir.endsWith(path.sep) ? cfg.liveDir : `${cfg.liveDir}${path.sep}`,
   };
   if (!env.NC_SITE_URL && env.RENDER_EXTERNAL_URL) env.NC_SITE_URL = env.RENDER_EXTERNAL_URL;
-  return spawn(process.execPath, [main], { cwd: path.dirname(path.dirname(main)), env, stdio: 'inherit' });
+  return spawn(noco.command, noco.args, { cwd: noco.cwd, env, stdio: 'inherit' });
 }
 
 async function checkNocoDB(cfg) {
@@ -524,6 +545,7 @@ module.exports = {
   configFromEnv,
   createServer,
   extractCommitMessage,
+  findNocoCommand,
   localHead,
   restoreSnapshot,
   sanitizeMessage,
