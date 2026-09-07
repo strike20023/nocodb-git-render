@@ -1,0 +1,15 @@
+{
+  "name": "nocodb-git-render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Run NocoDB and a safe Git snapshot webhook in one Render container",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node --check service/server.js && node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
+

@@ -1,0 +1,11 @@
+.env
+node_modules/
+coverage/
+*.log
+.DS_Store
+
+# Runtime clones and SQLite scratch files never belong to the application repo.
+.runtime/
+*.db-shm
+*.db-wal
+

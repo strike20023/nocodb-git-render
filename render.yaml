@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: nocodb-git
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: GIT_REMOTE_URL
+        sync: false
+      - key: GIT_TOKEN
+        sync: false
+      - key: GIT_WEBHOOK_SECRET
+        sync: false
+      - key: NC_AUTH_JWT_SECRET
+        generateValue: true
+      - key: GIT_BRANCH
+        value: main
+      - key: GIT_AUTHOR_NAME
+        value: NocoDB Version Bot
+      - key: GIT_AUTHOR_EMAIL
+        value: nocodb-version-bot@users.noreply.github.com
+      - key: NC_WEBHOOK_ALLOW_PRIVATE_NETWORK
+        value: "true"
